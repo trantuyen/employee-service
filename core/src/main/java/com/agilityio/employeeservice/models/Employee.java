@@ -29,5 +29,5 @@ public class Employee {
      * List of employees of the specified department
      */
     @Valid
-    private List<EmployeeItem> employeeItems = new ArrayList<EmployeeItem>();
+    private List<EmployeeItem> employeeItems = new ArrayList<>();
 }
