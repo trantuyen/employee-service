@@ -1,0 +1,7 @@
+spring:
+
+  # MongoDB configuration
+  data:
+    mongodb:
+      database: dbtest
+      port: 27017
