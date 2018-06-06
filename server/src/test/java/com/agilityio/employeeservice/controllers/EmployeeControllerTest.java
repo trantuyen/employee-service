@@ -91,10 +91,10 @@ public class EmployeeControllerTest {
     }
 
     /**
-     * Test create employees of a department success
+     * Test update employees of a department success
      */
     @Test
-    public void testCreateSuccess() {
+    public void testUpdateSuccess() {
         // TODO:: Create department first.
         // TODO:: Create employees of the department
     }
