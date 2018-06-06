@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: employee-service
+
+  # MongoDB configuration
+  data:
+    mongodb:
+      database: db
+      uri: ${MONGODB_URI:mongodb://user:pass@localhost:27017/db}
