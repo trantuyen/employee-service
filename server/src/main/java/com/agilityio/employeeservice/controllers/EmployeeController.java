@@ -55,7 +55,7 @@ public class EmployeeController {
      * @return Response entity.
      */
     @PostMapping
-    public ResponseEntity<?> createOrUpdate(@Valid @RequestBody Employee employee) {
+    public ResponseEntity<Employee> createOrUpdate(@Valid @RequestBody Employee employee) {
         final String departmentId = employee.getDepartmentId();
 
         if (StringUtils.isEmpty(departmentId)) {
@@ -75,8 +75,9 @@ public class EmployeeController {
 
         // Update data
         mapper.update(employee, employeeInternal);
-        repository.save(employeeInternal);
+        employeeInternal = repository.save(employeeInternal);
+        employee = mapper.toEmployee(employeeInternal);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(employee);
     }
 }

@@ -29,5 +29,5 @@ public interface EmployeeClient {
      * @return Response entity.
      */
     @PostMapping("/v1/employees")
-    ResponseEntity<?> createOrUpdate(@Valid @RequestBody Employee employee);
+    ResponseEntity<Employee> createOrUpdate(@Valid @RequestBody Employee employee);
 }

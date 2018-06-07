@@ -1,20 +1,30 @@
 package com.agilityio.employeeservice.controllers;
 
+import com.agilityio.departmentservice.DepartmentClient;
+import com.agilityio.departmentservice.models.Department;
+import com.agilityio.employeeservice.EmployeeClient;
 import com.agilityio.employeeservice.EmployeeServiceApplication;
+import com.agilityio.employeeservice.models.Employee;
+import com.agilityio.employeeservice.models.EmployeeItem;
 import com.agilityio.employeeservice.repositories.EmployeeRepository;
 import com.github.javafaker.Faker;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.netflix.feign.EnableFeignClients;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -26,6 +36,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     classes = EmployeeServiceApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @RunWith(SpringRunner.class)
+@EnableFeignClients(clients = {
+    DepartmentClient.class,
+    EmployeeClient.class
+})
 public class EmployeeControllerTest {
 
     protected static final Faker faker = new Faker(new Locale("en-US"));
@@ -38,6 +52,12 @@ public class EmployeeControllerTest {
 
     @Autowired
     protected MappingJackson2HttpMessageConverter springMvcJacksonConverter;
+
+    @Autowired
+    protected DepartmentClient departmentClient;
+
+    @Autowired
+    protected EmployeeClient employeeClient;
 
     protected MockMvc mockMvc;
 
@@ -86,8 +106,30 @@ public class EmployeeControllerTest {
      */
     @Test
     public void testCreateSuccess() {
-        // TODO:: Create department first.
-        // TODO:: Create employees of the department
+        Department createdDepartment = createDepartmentSuccess();
+
+        List<EmployeeItem> employeeInternalList = new ArrayList<>();
+        employeeInternalList.add(EmployeeItem.builder()
+            .id("LH")
+            .name("LightHouse")
+            .email(faker.internet().emailAddress())
+            .phoneNumber(faker.phoneNumber().phoneNumber())
+            .build());
+
+        Employee employee = Employee.builder()
+            .departmentId(createdDepartment.getId())
+            .employeeItems(employeeInternalList)
+            .build();
+
+        ResponseEntity<Employee> res = employeeClient.createOrUpdate(employee);
+
+        Assert.assertEquals(res.getStatusCode(), HttpStatus.OK);
+
+        Employee created = res.getBody();
+        Assert.assertNotNull(created);
+        Assert.assertNotNull(created.getId());
+        Assert.assertNotNull(created.getEmployeeItems());
+        Assert.assertEquals(created.getEmployeeItems().size(), employeeInternalList.size());
     }
 
     /**
@@ -97,5 +139,30 @@ public class EmployeeControllerTest {
     public void testUpdateSuccess() {
         // TODO:: Create department first.
         // TODO:: Create employees of the department
+    }
+
+    /**
+     * Create a department success.
+     *
+     * @return Department
+     */
+    private Department createDepartmentSuccess() {
+        // Create department first.
+        Department requestDepartment = Department.builder()
+            .name(faker.name().name())
+            .phoneNumber(faker.phoneNumber().phoneNumber())
+            .build();
+
+        ResponseEntity<Department> res = departmentClient.create(requestDepartment);
+        Assert.assertNotNull(res);
+        Assert.assertEquals(res.getStatusCode(), HttpStatus.OK);
+
+        Department createdDepartment = res.getBody();
+        Assert.assertNotNull(createdDepartment);
+        Assert.assertNotNull(createdDepartment.getId());
+        Assert.assertEquals(createdDepartment.getName(), requestDepartment.getName());
+        Assert.assertEquals(createdDepartment.getPhoneNumber(), requestDepartment.getPhoneNumber());
+
+        return createdDepartment;
     }
 }
