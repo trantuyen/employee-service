@@ -8,8 +8,7 @@
 
     <packaging>jar</packaging>
 
-    <name>employee-service-server</name>
-    <description>Demo project for Spring Boot</description>
+    <name>Employee Service</name>
 
     <parent>
         <groupId>com.agilityio</groupId>
