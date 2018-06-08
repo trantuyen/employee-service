@@ -4,6 +4,7 @@ import com.agilityio.departmentservice.DepartmentClient;
 import com.agilityio.departmentservice.models.Department;
 import com.agilityio.employeeservice.EmployeeClient;
 import com.agilityio.employeeservice.EmployeeServiceApplication;
+import com.agilityio.employeeservice.configurations.LocalRibbonClients;
 import com.agilityio.employeeservice.models.Employee;
 import com.agilityio.employeeservice.models.EmployeeItem;
 import com.agilityio.employeeservice.repositories.EmployeeRepository;
@@ -29,6 +30,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     classes = EmployeeServiceApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @RunWith(SpringRunner.class)
+@LocalRibbonClients
 @EnableFeignClients(clients = {
     DepartmentClient.class,
     EmployeeClient.class
@@ -78,15 +81,16 @@ public class EmployeeControllerTest {
      */
     @Test
     public void testFindOneSuccess() throws Exception {
-        // TODO:: Create department first.
-        // TODO:: Create employees of the department
+        // Create employees of a department first.
+        Employee created = createEmployeesSuccess();
 
-        // Perform get all employees
-        // TODO:: Get by department
-        mockMvc.perform(get(baseUrlTemplate))
+        // Perform get all employees of a department
+        mockMvc.perform(get(baseUrlTemplate + "?departmentId=" + created.getDepartmentId()))
+            .andDo(print())
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isNotEmpty())
-            .andExpect(jsonPath("$").isArray());
+            .andExpect(jsonPath("$.departmentId").value(created.getDepartmentId()))
+            .andExpect(jsonPath("$.employeeItems").isArray());
     }
 
     /**
@@ -98,7 +102,8 @@ public class EmployeeControllerTest {
     public void testFindOneWithInvalidDepartmentId() throws Exception {
         // Perform get all departments
         mockMvc.perform(get(baseUrlTemplate + "?departmentId=" + UUID.randomUUID().toString()))
-            .andExpect(jsonPath("$.code").value(HttpStatus.NOT_FOUND));
+            .andDo(print())
+            .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND));
     }
 
     /**
@@ -106,30 +111,7 @@ public class EmployeeControllerTest {
      */
     @Test
     public void testCreateSuccess() {
-        Department createdDepartment = createDepartmentSuccess();
-
-        List<EmployeeItem> employeeInternalList = new ArrayList<>();
-        employeeInternalList.add(EmployeeItem.builder()
-            .id("LH")
-            .name("LightHouse")
-            .email(faker.internet().emailAddress())
-            .phoneNumber(faker.phoneNumber().phoneNumber())
-            .build());
-
-        Employee employee = Employee.builder()
-            .departmentId(createdDepartment.getId())
-            .employeeItems(employeeInternalList)
-            .build();
-
-        ResponseEntity<Employee> res = employeeClient.createOrUpdate(employee);
-
-        Assert.assertEquals(res.getStatusCode(), HttpStatus.OK);
-
-        Employee created = res.getBody();
-        Assert.assertNotNull(created);
-        Assert.assertNotNull(created.getId());
-        Assert.assertNotNull(created.getEmployeeItems());
-        Assert.assertEquals(created.getEmployeeItems().size(), employeeInternalList.size());
+        createEmployeesSuccess();
     }
 
     /**
@@ -164,5 +146,39 @@ public class EmployeeControllerTest {
         Assert.assertEquals(createdDepartment.getPhoneNumber(), requestDepartment.getPhoneNumber());
 
         return createdDepartment;
+    }
+
+    /**
+     * Create employee success.
+     *
+     * @return The created employee
+     */
+    private Employee createEmployeesSuccess() {
+        Department createdDepartment = createDepartmentSuccess();
+
+        List<EmployeeItem> employeeInternalList = new ArrayList<>();
+        employeeInternalList.add(EmployeeItem.builder()
+            .id(UUID.randomUUID().toString())
+            .name(faker.name().name())
+            .email(faker.internet().emailAddress())
+            .phoneNumber(faker.phoneNumber().phoneNumber())
+            .build());
+
+        Employee employee = Employee.builder()
+            .departmentId(createdDepartment.getId())
+            .employeeItems(employeeInternalList)
+            .build();
+
+        ResponseEntity<Employee> res = employeeClient.createOrUpdate(employee);
+
+        Assert.assertEquals(res.getStatusCode(), HttpStatus.OK);
+
+        Employee created = res.getBody();
+        Assert.assertNotNull(created);
+        Assert.assertNotNull(created.getId());
+        Assert.assertNotNull(created.getEmployeeItems());
+        Assert.assertEquals(created.getEmployeeItems().size(), employeeInternalList.size());
+
+        return created;
     }
 }
