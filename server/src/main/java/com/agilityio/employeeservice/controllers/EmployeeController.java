@@ -1,10 +1,14 @@
 package com.agilityio.employeeservice.controllers;
 
+import com.agilityio.departmentservice.DepartmentClient;
+import com.agilityio.departmentservice.models.Department;
 import com.agilityio.employeeservice.exceptions.NotFoundResourceException;
 import com.agilityio.employeeservice.models.Employee;
 import com.agilityio.employeeservice.models.EmployeeInternal;
 import com.agilityio.employeeservice.models.mappers.EmployeeMapper;
 import com.agilityio.employeeservice.repositories.EmployeeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +24,8 @@ public class EmployeeController {
 
     private EmployeeMapper mapper;
 
-    // TODO:: Implement department service feign client
-    //private DepartmentServiceClient departmentServiceClient;
+    @Autowired
+    private DepartmentClient departmentClient;
 
     public EmployeeController(EmployeeRepository repository, EmployeeMapper mapper) {
         this.repository = repository;
@@ -36,16 +40,19 @@ public class EmployeeController {
      */
     @GetMapping
     public ResponseEntity<Employee> findOne(@Valid @RequestParam(value = "departmentId") String departmentId) {
-        List<EmployeeInternal> employees = repository.findAllByDepartmentIdEquals(departmentId);
-        Employee employee = new Employee();
+        // Check department has existed in the system
+        if (isExistedDepartment(departmentId)) {
+            List<EmployeeInternal> employees = repository.findAllByDepartmentIdEquals(departmentId);
+            Employee employee = new Employee();
 
-        // TODO:: Check department has existed in the system
+            if (employees != null && !employees.isEmpty()) {
+                employee = mapper.toEmployee(employees.get(0));
+            }
 
-        if (employees != null && !employees.isEmpty()) {
-            employee = mapper.toEmployee(employees.get(0));
+            return ResponseEntity.ok(employee);
+        } else {
+            throw new NotFoundResourceException("Could not find given department id in the system.");
         }
-
-        return ResponseEntity.ok(employee);
     }
 
     /**
@@ -58,26 +65,42 @@ public class EmployeeController {
     public ResponseEntity<Employee> createOrUpdate(@Valid @RequestBody Employee employee) {
         final String departmentId = employee.getDepartmentId();
 
-        if (StringUtils.isEmpty(departmentId)) {
-            throw new NotFoundResourceException("The given department has not existed.");
-        }
+        // Make sure department has existed in the system
+        if (!StringUtils.isEmpty(departmentId) && isExistedDepartment(departmentId)) {
+            List<EmployeeInternal> employeeInternals = repository.findAllByDepartmentIdEquals(departmentId);
+            EmployeeInternal employeeInternal;
 
-        // TODO:: Make sure department has existed in the system
-        List<EmployeeInternal> employeeInternals = repository.findAllByDepartmentIdEquals(departmentId);
-        EmployeeInternal employeeInternal;
+            if (employeeInternals == null || employeeInternals.isEmpty()) {
+                employeeInternal = EmployeeInternal.builderInternal().buildInternal();
+                employeeInternal.setDepartmentId(departmentId);
+            } else {
+                employeeInternal = employeeInternals.get(0);
+            }
 
-        if (employeeInternals == null || employeeInternals.isEmpty()) {
-            employeeInternal = EmployeeInternal.builderInternal().buildInternal();
-            employeeInternal.setDepartmentId(departmentId);
+            // Update data
+            mapper.update(employee, employeeInternal);
+            employeeInternal = repository.save(employeeInternal);
+            employee = mapper.toEmployee(employeeInternal);
+
+            return ResponseEntity.ok(employee);
         } else {
-            employeeInternal = employeeInternals.get(0);
+            throw new NotFoundResourceException("Could not find given department id in the system.");
         }
+    }
 
-        // Update data
-        mapper.update(employee, employeeInternal);
-        employeeInternal = repository.save(employeeInternal);
-        employee = mapper.toEmployee(employeeInternal);
-
-        return ResponseEntity.ok(employee);
+    /**
+     * Check if department is existed in the system.
+     *
+     * @param departmentId Department id
+     * @return True: existed.
+     */
+    private boolean isExistedDepartment(String departmentId) {
+        try {
+            ResponseEntity<Department> res = departmentClient.findOne(departmentId);
+            return res.getStatusCode() == HttpStatus.OK && res.getBody() != null;
+        } catch (Exception e) {
+            // TODO:: Log this
+            return false;
+        }
     }
 }

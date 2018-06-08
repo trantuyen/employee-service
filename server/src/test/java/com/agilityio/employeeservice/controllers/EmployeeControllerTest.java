@@ -7,6 +7,7 @@ import com.agilityio.employeeservice.EmployeeServiceApplication;
 import com.agilityio.employeeservice.models.Employee;
 import com.agilityio.employeeservice.models.EmployeeItem;
 import com.agilityio.employeeservice.repositories.EmployeeRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.javafaker.Faker;
 import org.junit.Assert;
 import org.junit.Before;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.netflix.feign.EnableFeignClients;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -29,6 +31,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -52,13 +55,13 @@ public class EmployeeControllerTest {
     protected EmployeeRepository repository;
 
     @Autowired
-    protected MappingJackson2HttpMessageConverter springMvcJacksonConverter;
-
-    @Autowired
     protected DepartmentClient departmentClient;
 
     @Autowired
     protected EmployeeClient employeeClient;
+
+    @Autowired
+    protected MappingJackson2HttpMessageConverter springMvcJacksonConverter;
 
     protected MockMvc mockMvc;
 
@@ -98,27 +101,41 @@ public class EmployeeControllerTest {
      */
     @Test
     public void testFindOneWithInvalidDepartmentId() throws Exception {
-        // Perform get all departments
         mockMvc.perform(get(baseUrlTemplate + "?departmentId=" + UUID.randomUUID().toString()))
-            .andDo(print())
-            .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND));
+            .andExpect(status().isNotFound());
     }
 
     /**
      * Test create employees of a department success
      */
     @Test
-    public void testCreateSuccess() {
-        createEmployeesSuccess();
+    public void testCreateSuccess() throws Exception {
+        Department department = createDepartmentSuccess();
+
+        List<EmployeeItem> employeeItems = new ArrayList<>();
+        employeeItems.add(generateAnEmployeeItem());
+
+        Employee employee = Employee.builder()
+            .departmentId(department.getId())
+            .employeeItems(employeeItems)
+            .build();
+
+        mockMvc.perform(post(baseUrlTemplate).content(toJson(employee)).contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
     }
 
     /**
      * Test update employees of a department success
      */
     @Test
-    public void testUpdateSuccess() {
-        // TODO:: Create department first.
-        // TODO:: Create employees of the department
+    public void testUpdateSuccess() throws Exception {
+        Employee employee = createEmployeesSuccess();
+
+        List<EmployeeItem> items = employee.getEmployeeItems();
+        items.add(generateAnEmployeeItem());
+
+        mockMvc.perform(post(baseUrlTemplate).content(toJson(employee)).contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
     }
 
     /**
@@ -155,12 +172,7 @@ public class EmployeeControllerTest {
         Department createdDepartment = createDepartmentSuccess();
 
         List<EmployeeItem> employeeInternalList = new ArrayList<>();
-        employeeInternalList.add(EmployeeItem.builder()
-            .id(UUID.randomUUID().toString())
-            .name(faker.name().name())
-            .email(faker.internet().emailAddress())
-            .phoneNumber(faker.phoneNumber().phoneNumber())
-            .build());
+        employeeInternalList.add(generateAnEmployeeItem());
 
         Employee employee = Employee.builder()
             .departmentId(createdDepartment.getId())
@@ -178,5 +190,30 @@ public class EmployeeControllerTest {
         Assert.assertEquals(created.getEmployeeItems().size(), employeeInternalList.size());
 
         return created;
+    }
+
+    /**
+     * Generate an employee item.
+     *
+     * @return Employee item
+     */
+    private EmployeeItem generateAnEmployeeItem() {
+        return EmployeeItem.builder()
+            .id(UUID.randomUUID().toString())
+            .name(faker.name().name())
+            .email(faker.internet().emailAddress())
+            .phoneNumber(faker.phoneNumber().phoneNumber())
+            .build();
+    }
+
+    /**
+     * Get json string from employee object.
+     *
+     * @param employee Employee
+     * @return Json string
+     * @throws JsonProcessingException Can not parse the given object
+     */
+    private String toJson(Employee employee) throws JsonProcessingException {
+        return springMvcJacksonConverter.getObjectMapper().writeValueAsString(employee);
     }
 }
