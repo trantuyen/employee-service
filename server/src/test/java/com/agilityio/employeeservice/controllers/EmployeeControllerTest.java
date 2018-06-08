@@ -4,7 +4,6 @@ import com.agilityio.departmentservice.DepartmentClient;
 import com.agilityio.departmentservice.models.Department;
 import com.agilityio.employeeservice.EmployeeClient;
 import com.agilityio.employeeservice.EmployeeServiceApplication;
-import com.agilityio.employeeservice.configurations.LocalRibbonClients;
 import com.agilityio.employeeservice.models.Employee;
 import com.agilityio.employeeservice.models.EmployeeItem;
 import com.agilityio.employeeservice.repositories.EmployeeRepository;
@@ -38,7 +37,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     classes = EmployeeServiceApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @RunWith(SpringRunner.class)
-@LocalRibbonClients
 @EnableFeignClients(clients = {
     DepartmentClient.class,
     EmployeeClient.class
